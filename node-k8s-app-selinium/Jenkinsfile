@@ -1,8 +1,8 @@
 pipeline {
     agent any
-    
-    // Explicitly adding the path here as a backup
+
     environment {
+        // Ensures Jenkins finds Node 22 and other binaries
         PATH = "/usr/local/bin:/usr/bin:/bin:${env.PATH}"
     }
 
@@ -10,7 +10,6 @@ pipeline {
         stage('Install') {
             steps {
                 dir('node-k8s-app-selinium') {
-                    // Try running with a shell that forces profile loading
                     sh 'npm install'
                 }
             }
@@ -19,62 +18,7 @@ pipeline {
         stage('Run Tests') {
             steps {
                 dir('node-k8s-app-selinium') {
-                    sh 'npm test || true' 
-                }
-            }
-        }
-
-        stage('Build & Push') {
-            steps {
-                dir('node-k8s-app-selinium') {
-                    sh 'docker build -t kalyani46/my-k8s-app:latest .'
-                    
-                    withCredentials([usernamePassword(credentialsId: 'docker-hub', 
-                                     passwordVariable: 'DOCKER_PASSWORD', 
-                                     usernameVariable: 'DOCKER_USERNAME')]) {
-                        sh 'echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin'
-                        sh 'docker push kalyani46/my-k8s-app:latest'
-                    }
-                }
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                dir('node-k8s-app-selinium') {
-                    sh '''
-                    minikube kubectl -- apply -f k8s/deployment.yaml
-                    minikube kubectl -- apply -f k8s/service.yaml
-                    minikube kubectl -- rollout restart deployment my-k8s-app
-                    '''
-                }
-            }
-        }
-    }
-}pipeline {
-    agent any
-
-    stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main', 
-                    url: 'https://github.com/Kalyani1213/selenium-devops.git'
-            }
-        }
-
-        stage('Install') {
-            steps {
-                dir('node-k8s-app-selinium') {
-                    sh 'npm install'
-                }
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                dir('node-k8s-app-selinium') {
-                    // || true ensures the pipeline continues even if a test fails
-                    sh 'npm test || true' 
+                    sh 'npm test || true'
                 }
             }
         }
@@ -89,14 +33,14 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                // 'docker-hub' matches your Jenkins credentials ID
-                withCredentials([usernamePassword(credentialsId: 'docker-hub', 
-                                 passwordVariable: 'DOCKER_PASSWORD', 
-                                 usernameVariable: 'DOCKER_USERNAME')]) {
-                    
-                    // Fixed shell syntax for the login
-                    sh 'echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin'
-                    sh 'docker push kalyani46/my-k8s-app:latest'
+                dir('node-k8s-app-selinium') {
+                    // Match the ID 'docker-hub' from your Jenkins Credentials
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub', 
+                                     passwordVariable: 'DOCKER_PASSWORD', 
+                                     usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh 'echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin'
+                        sh 'docker push kalyani46/my-k8s-app:latest'
+                    }
                 }
             }
         }
