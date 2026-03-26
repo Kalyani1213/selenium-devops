@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
       - name: my-k8s-app
-        image: laxmi916/my-k8s-app:latest  # your Docker Hub image
+        # Updated to match your Docker Hub username from the Jenkins logs
+        image: kalyani46/my-k8s-app:latest 
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
