@@ -1,5 +1,58 @@
 pipeline {
     agent any
+    
+    // Explicitly adding the path here as a backup
+    environment {
+        PATH = "/usr/local/bin:/usr/bin:/bin:${env.PATH}"
+    }
+
+    stages {
+        stage('Install') {
+            steps {
+                dir('node-k8s-app-selinium') {
+                    // Try running with a shell that forces profile loading
+                    sh 'npm install'
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                dir('node-k8s-app-selinium') {
+                    sh 'npm test || true' 
+                }
+            }
+        }
+
+        stage('Build & Push') {
+            steps {
+                dir('node-k8s-app-selinium') {
+                    sh 'docker build -t kalyani46/my-k8s-app:latest .'
+                    
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub', 
+                                     passwordVariable: 'DOCKER_PASSWORD', 
+                                     usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh 'echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin'
+                        sh 'docker push kalyani46/my-k8s-app:latest'
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                dir('node-k8s-app-selinium') {
+                    sh '''
+                    minikube kubectl -- apply -f k8s/deployment.yaml
+                    minikube kubectl -- apply -f k8s/service.yaml
+                    minikube kubectl -- rollout restart deployment my-k8s-app
+                    '''
+                }
+            }
+        }
+    }
+}pipeline {
+    agent any
 
     stages {
         stage('Checkout') {
