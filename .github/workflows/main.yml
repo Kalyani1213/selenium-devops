@@ -1,0 +1,16 @@
+name: Node CI-CD Pipeline
+on: [push]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          cd node-k8s-app-selinium
+          npm install
+      - name: Run Tests
+        run: |
+          cd node-k8s-app-selinium
+          npm test
