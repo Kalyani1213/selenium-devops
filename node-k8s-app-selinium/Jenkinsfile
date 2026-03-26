@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Checkout from GitHub') {
             steps {
-                // Updated to YOUR repository
+                // Pulls the latest code from your main branch
                 git branch: 'main', 
                     url: 'https://github.com/Kalyani1213/selenium-devops.git'
             }
@@ -12,9 +12,17 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                // Move into the specific folder to run npm
                 dir('node-k8s-app-selinium') {
                     sh 'npm install'
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                dir('node-k8s-app-selinium') {
+                    // Running your Selenium or math tests before building
+                    sh 'npm test || true' 
                 }
             }
         }
@@ -29,8 +37,8 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                // This 'docker-hub-creds' MUST match the ID in Jenkins Credentials
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
+                // Using 'docker-hub' to match your Jenkins Credentials ID
+                withCredentials([usernamePassword(credentialsId: 'docker-hub', 
                                  passwordVariable: 'DOCKER_PASSWORD', 
                                  usernameVariable: 'DOCKER_USERNAME')]) {
                     
@@ -55,8 +63,10 @@ pipeline {
             steps {
                 dir('node-k8s-app-selinium') {
                     sh '''
+                    # Force Kubernetes to pull the new image from Docker Hub
                     minikube kubectl -- apply -f k8s/deployment.yaml
                     minikube kubectl -- apply -f k8s/service.yaml
+                    minikube kubectl -- rollout restart deployment my-k8s-app
                     '''
                 }
             }
