@@ -2,8 +2,9 @@ pipeline {
     agent any
 
     environment {
+        // Ensures Jenkins can find Node, Docker, and Minikube binaries
         PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
-        // These tell Jenkins exactly where your Minikube files are
+        // Points to the Minikube configuration you authorized in the terminal
         MINIKUBE_HOME = "/home/user"
         KUBECONFIG = "/home/user/.kube/config"
     }
@@ -20,6 +21,7 @@ pipeline {
         stage('Run Tests') {
             steps {
                 dir('node-k8s-app-selinium') {
+                    // Runs Selenium in headless mode (configured in selenium.test.js)
                     sh 'npm test || true'
                 }
             }
@@ -42,11 +44,13 @@ pipeline {
         stage('Deploy to K8s') {
             steps {
                 dir('node-k8s-app-selinium') {
-                    // We don't need 'minikube start' here anymore since it's already running
                     sh '''
+                    # Apply changes to the cluster
                     minikube kubectl -- apply -f k8s/deployment.yaml
                     minikube kubectl -- apply -f k8s/service.yaml
-                    minikube kubectl -- rollout restart deployment my-k8s-app
+                    
+                    # FIXED: Added '-deployment' to match your actual K8s resource name
+                    minikube kubectl -- rollout restart deployment my-k8s-app-deployment
                     '''
                 }
             }
