@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        // Ensures Jenkins finds Node 22 and other binaries
-        PATH = "/usr/local/bin:/usr/bin:/bin:${env.PATH}"
+        // Ensures Jenkins finds the Node 20 we just installed
+        PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
     }
 
     stages {
@@ -34,7 +34,6 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 dir('node-k8s-app-selinium') {
-                    // Match the ID 'docker-hub' from your Jenkins Credentials
                     withCredentials([usernamePassword(credentialsId: 'docker-hub', 
                                      passwordVariable: 'DOCKER_PASSWORD', 
                                      usernameVariable: 'DOCKER_USERNAME')]) {
