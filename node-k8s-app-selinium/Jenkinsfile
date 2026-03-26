@@ -2,15 +2,14 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout from GitHub') {
+        stage('Checkout') {
             steps {
-                // Pulls the latest code from your main branch
                 git branch: 'main', 
                     url: 'https://github.com/Kalyani1213/selenium-devops.git'
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Install') {
             steps {
                 dir('node-k8s-app-selinium') {
                     sh 'npm install'
@@ -21,49 +20,41 @@ pipeline {
         stage('Run Tests') {
             steps {
                 dir('node-k8s-app-selinium') {
-                    // Running your Selenium or math tests before building
+                    // || true ensures the pipeline continues even if a test fails
                     sh 'npm test || true' 
                 }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Image') {
             steps {
                 dir('node-k8s-app-selinium') {
-                    sh "docker build -t kalyani46/my-k8s-app:latest ."
+                    sh 'docker build -t kalyani46/my-k8s-app:latest .'
                 }
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Push to Docker Hub') {
             steps {
-                // Using 'docker-hub' to match your Jenkins Credentials ID
+                // 'docker-hub' matches your Jenkins credentials ID
                 withCredentials([usernamePassword(credentialsId: 'docker-hub', 
                                  passwordVariable: 'DOCKER_PASSWORD', 
                                  usernameVariable: 'DOCKER_USERNAME')]) {
                     
-                    sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
+                    // Fixed shell syntax for the login
+                    sh 'echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin'
                     sh 'docker push kalyani46/my-k8s-app:latest'
                 }
             }
         }
 
-        stage('Start Minikube') {
-            steps {
-                sh '''
-                if ! minikube status | grep -q "apiserver: Running"; then
-                    echo "Minikube is not running. Starting now..."
-                    minikube start --driver=docker
-                fi
-                '''
-            }
-        }
-
-        stage('Deploy to Kubernetes') {
+        stage('Deploy to K8s') {
             steps {
                 dir('node-k8s-app-selinium') {
                     sh '''
-                    # Force Kubernetes to pull the new image from Docker Hub
+                    if ! minikube status | grep -q "apiserver: Running"; then
+                        minikube start --driver=docker
+                    fi
                     minikube kubectl -- apply -f k8s/deployment.yaml
                     minikube kubectl -- apply -f k8s/service.yaml
                     minikube kubectl -- rollout restart deployment my-k8s-app
