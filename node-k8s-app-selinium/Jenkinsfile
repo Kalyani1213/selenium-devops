@@ -2,41 +2,50 @@ pipeline {
     agent any
 
     stages {
-
         stage('Checkout from GitHub') {
             steps {
-                git branch: 'master',
-                    url: 'https://github.com/laxmi916/node-k8s-app.git'
+                // Updated to YOUR repository
+                git branch: 'main', 
+                    url: 'https://github.com/Kalyani1213/selenium-devops.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                // Move into the specific folder to run npm
+                dir('node-k8s-app-selinium') {
+                    sh 'npm install'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                docker build -t my-k8s-app:${BUILD_NUMBER} .
-                docker tag my-k8s-app:${BUILD_NUMBER} laxmi916/my-k8s-app:latest
-                '''
+                dir('node-k8s-app-selinium') {
+                    sh "docker build -t kalyani46/my-k8s-app:latest ."
+                }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                sh 'docker push laxmi916/my-k8s-app:latest'
+                // This 'docker-hub-creds' MUST match the ID in Jenkins Credentials
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
+                                 passwordVariable: 'DOCKER_PASSWORD', 
+                                 usernameVariable: 'DOCKER_USERNAME')]) {
+                    
+                    sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
+                    sh 'docker push kalyani46/my-k8s-app:latest'
+                }
             }
         }
 
-        stage('Start Minikube if not running') {
+        stage('Start Minikube') {
             steps {
                 sh '''
                 if ! minikube status | grep -q "apiserver: Running"; then
                     echo "Minikube is not running. Starting now..."
-                    minikube start --driver=docker --memory=2048 --cpus=2
+                    minikube start --driver=docker
                 fi
                 '''
             }
@@ -44,15 +53,12 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh '''
-                # Load latest image into Minikube
-                # minikube image load laxmi916/my-k8s-app:latest
-
-                # Apply manifests
-                minikube kubectl -- apply -f k8s/deployment.yaml
-                minikube kubectl -- apply -f k8s/service.yaml
-                minikube service my-k8s-app-service
-                '''
+                dir('node-k8s-app-selinium') {
+                    sh '''
+                    minikube kubectl -- apply -f k8s/deployment.yaml
+                    minikube kubectl -- apply -f k8s/service.yaml
+                    '''
+                }
             }
         }
     }
