@@ -2,8 +2,10 @@ pipeline {
     agent any
 
     environment {
-        // Ensures Jenkins finds the Node 20 we just installed
         PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
+        // These tell Jenkins exactly where your Minikube files are
+        MINIKUBE_HOME = "/home/user"
+        KUBECONFIG = "/home/user/.kube/config"
     }
 
     stages {
@@ -18,28 +20,18 @@ pipeline {
         stage('Run Tests') {
             steps {
                 dir('node-k8s-app-selinium') {
-                    // || true ensures the pipeline continues even if tests fail
                     sh 'npm test || true'
                 }
             }
         }
 
-        stage('Build Image') {
+        stage('Build & Push') {
             steps {
                 dir('node-k8s-app-selinium') {
                     sh 'docker build -t kalyani46/my-k8s-app:latest .'
-                }
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                dir('node-k8s-app-selinium') {
-                    // Using 'docker-hub-creds' - make sure this ID exists in Jenkins Credentials
                     withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
                                      passwordVariable: 'DOCKER_PASSWORD', 
                                      usernameVariable: 'DOCKER_USERNAME')]) {
-                        
                         sh 'echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin'
                         sh 'docker push kalyani46/my-k8s-app:latest'
                     }
@@ -50,10 +42,8 @@ pipeline {
         stage('Deploy to K8s') {
             steps {
                 dir('node-k8s-app-selinium') {
+                    // We don't need 'minikube start' here anymore since it's already running
                     sh '''
-                    if ! minikube status | grep -q "apiserver: Running"; then
-                        minikube start --driver=docker
-                    fi
                     minikube kubectl -- apply -f k8s/deployment.yaml
                     minikube kubectl -- apply -f k8s/service.yaml
                     minikube kubectl -- rollout restart deployment my-k8s-app
